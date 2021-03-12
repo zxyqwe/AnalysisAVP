@@ -36,6 +36,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         VideoView vv = findViewById(R.id.sample_video);
         nativeWindowView(vv.getHolder().getSurface());
+        JClass obj = new JClass();
+        nativeSaveJObject(obj);
     }
 
     /**
@@ -45,5 +47,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public native String stringFromJNI();//声明本地方法
     public native String stringFromJNIGONGLUCK(String str);
     public native void nativeWindowView(Object surface);
+    public native void nativeSaveJObject(JClass obj);
 
 }

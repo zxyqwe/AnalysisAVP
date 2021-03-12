@@ -4,10 +4,12 @@
 #include <android/log.h>
 #include <android/native_window_jni.h>
 
+#include <thread>
 #include "clibrary.h"
 
 #define JNI_CLASS_PATH  "com/gongluck/jni/MainActivity"
 
+static JavaVM* g_vm = nullptr;
 static jclass g_sclazz = nullptr;
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -65,6 +67,8 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved){
     //注册关联本地方法
     env->RegisterNatives(clazz, g_methods, sizeof(g_methods)/sizeof(g_methods[0]));
 
+    g_vm = vm;
+
     return JNI_VERSION_1_6;
 }
 
@@ -110,4 +114,46 @@ Java_com_gongluck_jni_MainActivity_nativeWindowView(//函数名：Java_包名_�
         }
     }
     anret = ANativeWindow_unlockAndPost(win);
+}
+
+static jobject g_jclass = nullptr;
+static jobject g_obj = nullptr;
+static std::thread g_th;
+
+void th()
+{
+    JNIEnv *env = nullptr;
+    g_vm->GetEnv((void**)&env, JNI_VERSION_1_6);
+
+    auto method = env->GetMethodID((jclass)g_jclass, "setValue", "(I)V");
+    env->CallVoidMethod(g_obj, method, 10);
+}
+
+extern "C" JNIEXPORT void JNICALL//函数头声明
+Java_com_gongluck_jni_MainActivity_nativeSaveJObject(//函数名：Java_包名_类名_方法名
+        JNIEnv *env, jobject /* this */,
+        jobject obj) {
+    jclass clazz = env->FindClass("com/gongluck/jni/JClass");
+    g_jclass = env->NewGlobalRef(clazz);
+    g_obj = env->NewGlobalRef(obj);
+
+    std::thread th([=]{
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        JNIEnv *env = nullptr;
+        int status;
+        status = g_vm->GetEnv((void **)&env, JNI_VERSION_1_6);
+        if(status < 0)
+        {
+            status = g_vm->AttachCurrentThread(&env, nullptr);
+            if(status < 0)
+            {
+                env = nullptr;
+            }
+        }
+
+        auto method = env->GetMethodID((jclass)g_jclass, "setValue", "(I)V");
+        env->CallVoidMethod(g_obj, method, 10);
+        g_vm->DetachCurrentThread();
+    });
+    g_th.swap(th);
 }
